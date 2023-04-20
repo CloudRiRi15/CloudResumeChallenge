@@ -1,0 +1,14 @@
+import json
+import boto3
+
+dynamodb = boto3.resource('dynamodb')
+table = dynamodb.Table('my_table') # replace 'my_table' with your table name
+
+def lambda_handler(event, context):
+    response = table.get_item(Key={'id': 'my_id'}) # replace 'my_id' with the id of the item you want to retrieve
+    views_count = response['Item']['views'] # replace 'views' with the attribute name for your views count
+    
+    return {
+        'statusCode': 200,
+        'body': json.dumps(views_count)
+    }
