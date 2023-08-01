@@ -1,1 +1,81 @@
+import json
+import boto3
+from botocore.exceptions import ClientError
 
+dynamodb = boto3.resource('dynamodb')
+table = dynamodb.Table('mycloudresume-test')
+COOKIE_NAME = 'uniqueVisitor'
+
+def lambda_handler(event, context):
+    try:
+        print("Event:", event)
+        headers = event.get('headers', {})
+        print("Headers:", headers)
+        cookies = headers.get('Cookie', '')
+        print("Cookies:", cookies)
+        unique_visitor_cookie = get_cookie_from_event(event, COOKIE_NAME)
+        print("Unique Visitor Cookie:", unique_visitor_cookie)
+        
+        if not unique_visitor_cookie:
+            # If the cookie is not set, it's a new visitor
+            unique_identifier = generate_unique_identifier()
+            # Set the cookie to expire after 30 days
+            set_cookie_header = f"{COOKIE_NAME}={unique_identifier}; Max-Age=2592000; Path=/;"
+        else:
+            # If the cookie is set, it's a returning visitor
+            set_cookie_header = ''
+
+        response = table.get_item(Key={'id': '1'})
+        views = response.get('Item', {}).get('views', 0)
+        views += 1
+
+        response = table.put_item(Item={'id': '1', 'views': views})
+        
+        print (type(views))
+
+        return {
+            'statusCode': 200,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Set-Cookie': set_cookie_header
+            },
+            'body': json.dumps(str(views))
+        }
+    except ClientError as e:
+        raise e
+
+def get_cookie_from_event(event, cookie_name):
+    headers = event.get('headers', {})
+    cookies = headers.get('Cookie', '')
+    
+    if not cookies:
+        # Handle the case where the "Cookie" header is missing or empty
+        return None
+
+    for cookie in cookies.split(';'):
+        name_value_pair = cookie.strip().split('=')
+        if len(name_value_pair) == 2:
+            name, value = name_value_pair
+            if name == cookie_name:
+                return value
+
+    return None
+
+def generate_unique_identifier():
+    # You can use a library or generate a random string here for a unique identifier
+    # For simplicity, let's use a timestamp in this example
+    import time
+    return str(int(time.time()))
+
+   # Prepare the response to allow 
+    response = {
+        'statusCode': 200,
+        'headers': {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': 'https://cloudupwithree.com',
+            'Access-Control-Allow-Credentials': 'true'
+        },
+        'body': json.dumps(str(views))
+    }
+    
+    return response
